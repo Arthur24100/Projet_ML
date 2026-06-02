@@ -1,0 +1,110 @@
+# docker-compose.yml — Mission 4 MLOps
+# ======================================
+# Rôle : orchestrer les deux conteneurs Docker du projet.
+# docker-compose permet de définir, configurer et démarrer plusieurs
+# conteneurs en une seule commande : docker-compose up --build
+#
+# Architecture :
+#   [modele-builder] → entraîne le modèle → écrit les .pkl dans /shared_model/
+#         ↓ (volume partagé)
+#   [api]            → lit les .pkl depuis /shared_model/ → expose /predict sur :8000
+#
+# Commandes utiles :
+#   docker-compose up --build   → build les images et démarre les conteneurs
+#   docker-compose down         → arrête et supprime les conteneurs
+#   docker-compose logs api     → voir les logs du conteneur api
+#   docker-compose build --no-cache → force la reconstruction sans cache
+
+services:
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # CONTENEUR 1 — modele-builder
+  # Rôle : entraîner le StackingRegressor et sauvegarder les .pkl
+  # Ce conteneur se termine après l'entraînement — il ne reste pas actif.
+  # ════════════════════════════════════════════════════════════════════════════
+  modele-builder:
+
+    # build : chemin vers le dossier contenant le Dockerfile de ce service.
+    # Docker cherche un fichier nommé "Dockerfile" dans ce dossier et
+    # construit l'image à partir de ses instructions.
+    build: modele-builder
+
+    volumes:
+      # Volume Docker partagé (déclaré en bas du fichier).
+      # Ce conteneur Y ÉCRIT les .pkl après l'entraînement.
+      # Le : sépare le nom côté hôte (shared_model) du chemin côté conteneur (/shared_model).
+      - shared_model:/shared_model
+
+      # Montage du dossier local data/ dans le conteneur sous /data/.
+      # Permet à build_model.py de lire economy.csv avec pd.read_csv('/data/economy.csv').
+      # Sans ce montage, le fichier CSV serait inaccessible depuis l'intérieur du conteneur.
+      # Le ./data doit contenir economy.csv avant de lancer docker-compose up.
+      - ./data:/data
+
+    environment:
+      # Variable d'environnement lue dans build_model.py via os.environ.get("MODEL_DIR").
+      # Définit où sauvegarder les .pkl après l'entraînement.
+      # Correspond au chemin du volume partagé ci-dessus.
+      - MODEL_DIR=/shared_model
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # CONTENEUR 2 — api
+  # Rôle : charger les .pkl et exposer l'API FastAPI sur le port 8000
+  # Ce conteneur reste actif en permanence pour répondre aux requêtes.
+  # ════════════════════════════════════════════════════════════════════════════
+  api:
+
+    # build : dossier contenant le Dockerfile de l'API FastAPI.
+    build: api
+
+    ports:
+      # Mapping de port : "PORT_HÔTE:PORT_CONTENEUR"
+      # "8000:8000" → le port 8000 de ta machine redirige vers le port 8000
+      # du conteneur. Sans ce mapping, l'API ne serait accessible que depuis
+      # l'intérieur du réseau Docker, pas depuis ton navigateur (localhost:8000).
+      - "8000:8000"
+
+    volumes:
+      # Même volume partagé que modele-builder, mais ce conteneur LE LIT.
+      # Les .pkl écrits par modele-builder sont accessibles ici sous /shared_model/.
+      # C'est le "pont" entre les deux conteneurs — sans volume partagé,
+      # chaque conteneur aurait son propre système de fichiers isolé.
+      - shared_model:/shared_model
+
+    environment:
+      # Variable d'environnement lue dans main.py via os.environ.get("MODEL_DIR").
+      # Définit où charger les .pkl au démarrage de l'API.
+      # Doit correspondre exactement au chemin écrit par modele-builder.
+      - MODEL_DIR=/shared_model
+
+    depends_on:
+      # depends_on garantit que modele-builder DÉMARRE avant api.
+      # Attention : avec la syntaxe simple (liste), Docker attend seulement que
+      # le conteneur démarre, pas qu'il se termine avec succès.
+      # Pour attendre la fin complète de l'entraînement, utiliser :
+      #   depends_on:
+      #     modele-builder:
+      #       condition: service_completed_successfully
+      # La version simple est conservée ici pour compatibilité avec
+      # les anciennes versions de Docker Compose.
+      - modele-builder
+
+# ════════════════════════════════════════════════════════════════════════════
+# VOLUME PARTAGÉ
+# ════════════════════════════════════════════════════════════════════════════
+# Les volumes Docker sont des espaces de stockage persistants gérés par Docker,
+# indépendants du cycle de vie des conteneurs.
+#
+# Pourquoi un volume et pas un simple montage de dossier local ?
+#   Un montage local (./data:/data) lie un dossier de ta machine au conteneur.
+#   Un volume Docker (shared_model:/shared_model) crée un espace de stockage
+#   interne à Docker, accessible par plusieurs conteneurs simultanément.
+#   C'est le seul moyen propre de partager des fichiers ENTRE conteneurs
+#   sans passer par ta machine hôte.
+#
+# Cycle de vie :
+#   docker-compose up   → crée le volume s'il n'existe pas
+#   docker-compose down → CONSERVE le volume (les .pkl ne sont pas supprimés)
+#   docker-compose down -v → supprime le volume (à faire si on veut repartir de zéro)
+volumes:
+  shared_model:

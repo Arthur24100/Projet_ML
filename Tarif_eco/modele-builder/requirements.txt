@@ -1,0 +1,29 @@
+# requirements.txt — conteneur model-builder (version entraînement dans Docker)
+# ==============================================================================
+# Ce conteneur ré-entraîne le modèle directement dans Docker à partir du CSV.
+# Il a donc besoin de toutes les dépendances de data science (pandas, numpy,
+# scikit-learn), contrairement au model-builder de train_and_save qui ne
+# fait que copier des .pkl.
+
+# pandas : chargement du CSV (pd.read_csv), preprocessing des dates (.dt.*),
+# construction du DataFrame de features avant le scaling.
+pandas==2.0.3
+
+# numpy : calculs numériques (np.log1p, np.expm1, np.nan, np.sqrt),
+# gestion des NaN dans les features.
+# IMPORTANT : doit correspondre exactement à la version numpy de l'API —
+# les deux conteneurs partagent les .pkl, qui embarquent des objets numpy.
+# Une différence de version cause "PCG64 is not a known BitGenerator".
+numpy==1.24.3
+
+# scikit-learn : LabelEncoder, StandardScaler, train_test_split,
+# RandomForestRegressor, ExtraTreesRegressor, HistGradientBoostingRegressor,
+# KNeighborsRegressor, BaggingRegressor, DecisionTreeRegressor, StackingRegressor,
+# r2_score, mean_absolute_error, mean_squared_error.
+# Même contrainte de version que numpy.
+scikit-learn==1.3.2
+
+# joblib : sérialise le modèle et les objets de preprocessing en fichiers .pkl
+# (joblib.dump). C'est joblib qui doit aussi les désérialiser dans l'API
+# (joblib.load) — même bibliothèque, même version obligatoire.
+joblib==1.3.2

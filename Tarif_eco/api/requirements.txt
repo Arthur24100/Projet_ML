@@ -1,0 +1,34 @@
+# requirements.txt — conteneur api (Tarif_eco)
+# ==============================================
+# Dépendances nécessaires pour faire tourner l'API FastAPI.
+# Plus complet que le requirements.txt du model-builder car l'API fait
+# du preprocessing (pandas, numpy) en plus du chargement du modèle.
+
+# fastapi : framework web pour construire l'API REST.
+# Gère le routing (/predict, /options, /health), la validation Pydantic,
+# et génère automatiquement la documentation Swagger à /docs.
+fastapi==0.104.1
+
+# uvicorn : serveur ASGI qui exécute FastAPI.
+# ASGI (Asynchronous Server Gateway Interface) supporte nativement l'asynchrone
+# pour gérer plusieurs requêtes simultanées sans bloquer.
+uvicorn==0.24.0
+
+# pandas : utilisé dans preprocess() pour parser les dates (pd.to_datetime),
+# calculer les features temporelles et construire le DataFrame d'entrée du modèle.
+pandas==2.0.3
+
+# numpy : utilisé pour expm1() (inverse du log sur la prédiction),
+# np.isnan() (détection NaN dans le vecteur de features).
+# IMPORTANT : doit correspondre à la version utilisée sur ta machine pour créer
+# les .pkl — une différence cause "PCG64 is not a known BitGenerator".
+numpy==1.24.3
+
+# scikit-learn : nécessaire pour désérialiser les objets sklearn des .pkl
+# (StackingRegressor, StandardScaler, LabelEncoder) et appeler .predict()/.transform().
+# Même contrainte de version que numpy.
+scikit-learn==1.3.2
+
+# joblib : charge les .pkl au démarrage (joblib.load).
+# C'est joblib qui a sérialisé les objets dans train_and_save.py — même lib, même version.
+joblib==1.3.2

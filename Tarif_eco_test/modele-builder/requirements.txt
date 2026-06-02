@@ -1,0 +1,25 @@
+# requirements.txt — conteneur model-builder
+# ===========================================
+# Ce fichier liste les dépendances Python nécessaires UNIQUEMENT pour
+# charger et valider les fichiers .pkl. On n'installe PAS pandas, numpy
+# ou matplotlib — ce conteneur ne fait pas de data science, il copie des fichiers.
+#
+# Règle : installer le strict minimum réduit la taille de l'image Docker
+# et diminue la surface d'attaque (moins de packages = moins de failles potentielles).
+ 
+# joblib : bibliothèque de sérialisation utilisée pour lire les .pkl
+# (joblib.load). C'est joblib qui a écrit les fichiers dans train_and_save.py,
+# donc c'est joblib qui doit les lire ici — même bibliothèque, même version.
+joblib==1.3.2
+ 
+# scikit-learn : nécessaire pour désérialiser les objets sklearn contenus
+# dans les .pkl (StackingRegressor, StandardScaler, LabelEncoder...).
+# Quand joblib charge model.pkl, Python doit pouvoir reconstruire les classes
+# sklearn — si scikit-learn n'est pas installé, le chargement échoue avec
+# "ModuleNotFoundError: No module named 'sklearn'".
+#
+# IMPORTANT : la version doit correspondre à celle utilisée sur ta machine
+# pour créer les .pkl. Une différence de version peut causer des
+# "InconsistentVersionWarning" ou des erreurs de déserialisation.
+scikit-learn==1.5.2
+ 
